@@ -3,7 +3,7 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const uuidv4 = require("uuid/v4");
-
+const redis = require("redis");
 
 const app = express();
 
@@ -52,7 +52,7 @@ function unsubscribe(socket, channel) {
 
     socketsPerChannels.set(channel, socketSubscribed);
     channelsPerSocket.set(socket, channelSubscribed);
-
+    
     if (socketSubscribed.size === 0) {
         client.unsubscribe(channel);
 }
@@ -69,11 +69,12 @@ function unsubscribeAll(socket) {
     });
 }
 
-
+// fonction pour publish
 function broadcast(channel, data) {
     publisher.publish(channel, data);
 }
 
+//on envoi le message a tout le monde
 client.on("message", (channel, message) => {
     const socketSubscribed = socketsPerChannels.get(channel) || new Set();
 
@@ -106,6 +107,7 @@ wss.on("connection", ws => {
                 subscribe(ws, message.channel);
                 break;
             default:
+            //on envoi avec broadcast
                 broadcast(message.channel, data);
                 break;
         }
