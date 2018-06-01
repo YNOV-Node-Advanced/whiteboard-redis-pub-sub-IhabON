@@ -4,6 +4,7 @@ const http = require("http");
 const WebSocket = require("ws");
 const uuidv4 = require("uuid/v4");
 
+
 const app = express();
 
 const PUBLIC_FOLDER = path.join(__dirname, "../public");
@@ -18,6 +19,9 @@ const server = http.createServer(app);
 // Initialize the WebSocket server instance
 const wss = new WebSocket.Server({ server });
 
+const publisher = redis.createClient();
+const client = redis.createClient();
+
 /*
  * Subscribe a socket to a specific channel.
  */
@@ -30,6 +34,10 @@ function subscribe(socket, channel) {
 
     socketsPerChannels.set(channel, socketSubscribed);
     channelsPerSocket.set(socket, channelSubscribed);
+
+    if (socketSubscribed.size === 1) {
+        client.subscribe(channel);
+}
 }
 
 /*
@@ -44,6 +52,10 @@ function unsubscribe(socket, channel) {
 
     socketsPerChannels.set(channel, socketSubscribed);
     channelsPerSocket.set(socket, channelSubscribed);
+
+    if (socketSubscribed.size === 0) {
+        client.unsubscribe(channel);
+}
 }
 
 /*
@@ -57,16 +69,28 @@ function unsubscribeAll(socket) {
     });
 }
 
+
+function broadcast(channel, data) {
+    publisher.publish(channel, data);
+}
+
+client.on("message", (channel, message) => {
+    const socketSubscribed = socketsPerChannels.get(channel) || new Set();
+
+    socketSubscribed.forEach(socket => {
+        socket.send(message);
+    });
+});
 /*
  * Broadcast a message to all sockets connected to this server.
  */
-function broadcastToSockets(channel, data) {
-    const socketSubscribed = socketsPerChannels.get(channel) || new Set();
+//function broadcastToSockets(channel, data) {
+    //const socketSubscribed = socketsPerChannels.get(channel) || new Set();
 
-    socketSubscribed.forEach(client => {
-        client.send(data);
-    });
-}
+    //socketSubscribed.forEach(client => {
+    //    client.send(data);
+    //});
+//}
 
 // Broadcast message from client
 wss.on("connection", ws => {
@@ -82,7 +106,7 @@ wss.on("connection", ws => {
                 subscribe(ws, message.channel);
                 break;
             default:
-                broadcastToSockets(message.channel, data);
+                broadcast(message.channel, data);
                 break;
         }
     });
@@ -98,6 +122,8 @@ app.get("/:channel", (req, res, next) => {
         if (err) {
             next(err);
         }
+        
+        
     });
 });
 
