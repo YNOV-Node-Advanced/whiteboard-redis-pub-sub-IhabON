@@ -19,8 +19,8 @@ const server = http.createServer(app);
 // Initialize the WebSocket server instance
 const wss = new WebSocket.Server({ server });
 
-const publisher = redis.createClient();
-const client = redis.createClient();
+const redispublisher = redis.createClient();
+const redisclient = redis.createClient();
 
 /*
  * Subscribe a socket to a specific channel.
@@ -36,7 +36,7 @@ function subscribe(socket, channel) {
     channelsPerSocket.set(socket, channelSubscribed);
 
     if (socketSubscribed.size === 1) {
-        client.subscribe(channel);
+        redisclient.subscribe(channel);
 }
 }
 
@@ -54,7 +54,7 @@ function unsubscribe(socket, channel) {
     channelsPerSocket.set(socket, channelSubscribed);
     
     if (socketSubscribed.size === 0) {
-        client.unsubscribe(channel);
+        redisclient.unsubscribe(channel);
 }
 }
 
@@ -71,7 +71,7 @@ function unsubscribeAll(socket) {
 
 // fonction pour publish
 function broadcast(channel, data) {
-    publisher.publish(channel, data);
+    redispublisher.publish(channel, data);
 }
 
 //on envoi le message a tout le monde
